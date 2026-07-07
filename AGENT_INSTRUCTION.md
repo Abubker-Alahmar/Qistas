@@ -40,12 +40,12 @@ Contract DTOs live in `Qistas.Domain` with explicit `[JsonPropertyName]` on ever
 - Proactive refresh ~5 min before `expires_in` (3599s).
 - On `401`: refresh once, retry the call once. Then fail into normal retry/outbox flow.
 
-## 5. Retry / outbox policy
+## 5. Retry / archive policy (owner decision — no automatic background retry)
 
-- Polly: exponential backoff, configurable max attempts, circuit breaker for sustained outage, per-call timeout. All calls async — Qistas must never block a caller while a truck waits.
-- On exhaustion: write the message to the `Outbox` table with `Status=Failed` — never drop it.
-- `Qistas.Worker` retries Pending/Failed periodically; humans resolve the rest via the admin/review endpoints ("Retry now" / "Mark manual").
-- Log every request/response pair (Serilog), secrets redacted.
+- Polly retries INLINE: exponential backoff, configurable max attempts, circuit breaker for sustained outage, per-call timeout. Keep the configured retries SHORT — the truck is on the scale and cannot wait long. All calls async — Qistas must never block a caller.
+- On exhaustion: ARCHIVE the message in the database (`Outbox` table, `Status=Failed`) — never drop it. The transaction is already saved locally in Balance; the truck proceeds.
+- Archived messages are handled by an EMPLOYEE only, via the review screen / admin endpoints: "Retry now" (re-send to D365) or "Mark manual" (entered directly in D365). There is NO background service that re-sends automatically — do not add one.
+- Log every request/response pair to BOTH the database (`IntegrationLog` table, one row per call attempt — owner requirement) and Serilog files, secrets redacted in both.
 
 ## 6. Idempotency
 
@@ -70,7 +70,7 @@ All implementation agents run on **Sonnet**; this file plus `PLAN.md` is their b
 | **Coder** | Per PLAN.md phase | Implements tasks strictly under these rules (esp. §2 typos, §3 culture) | Diff summary → Reviewer |
 | **Reviewer** | After each coder batch | Checks diffs against this file + `../Balance/CLAUDE.md` §16 edge cases (ghost success, env mix-up, expired licenses, clock skew…) | Approve → tick PLAN.md boxes; else → back to Coder |
 | **Test-writer** | Alongside/after coder | Unit + integration tests: token caching, retry/backoff, outbox-on-exhaustion, duplicate `ScaleSystemReferenceId`, tolerance breach, `ar-LY` serialization | Failing tests → Coder |
-| **Load-test** | Only if Coder+Reviewer flag concurrency risk (token cache / outbox worker) | Concurrency validation | Otherwise skipped — reason recorded in PLAN.md Phase 3 |
+| **Load-test** | Only if Coder+Reviewer flag concurrency risk (token cache / archive repository) | Concurrency validation | Otherwise skipped — reason recorded in PLAN.md Phase 3 |
 
 Nothing is "done" until the Reviewer has passed it.
 
@@ -78,11 +78,4 @@ Nothing is "done" until the Reviewer has passed it.
 
 - [ ] Read this file end-to-end (especially §2 and §3).
 - [ ] Read `PLAN.md` — work only on the current phase; don't skip ahead (Balance WinForms is off-limits until Phase 1 is reviewed and Balance has its git baseline commit).
-- [ ] Skim `../Balance/CLAUDE.md` Part 2 (§12–§17); §16 is the edge-case authority.
-- [ ] Confirm which environment (Dev/Test/Prod) any manual test targets — never point tests at Production.
-- [ ] Never commit secrets; check your diff for tokens/secrets before every commit.
-- [ ] Preserve contract typos in any new DTO/serialization code — grep for `Telorence` and `VehicleLicenselId` as a sanity check that you matched existing patterns.
-
----
-
-*v1.0 — 2026-07-07*
+- [ ] Skim `../Balance/CLAUDE.md` Part 2

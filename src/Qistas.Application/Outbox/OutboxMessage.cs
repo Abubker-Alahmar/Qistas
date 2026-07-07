@@ -1,9 +1,10 @@
 namespace Qistas.Application.Outbox;
 
 /// <summary>
-/// Represents one queued D365 write operation. Written on retry-exhaustion (never
-/// dropped), read by the admin review endpoints and the Worker's retry loop
-/// (AGENT_INSTRUCTION.md section 5; PLAN.md 1.3/1.6).
+/// One ARCHIVED D365 write operation. Written when inline Polly retries are exhausted
+/// (never dropped) or as a Sent audit row. Read by the admin review endpoints only --
+/// an employee re-sends ("Retry now") or resolves ("Mark manual"); there is no automatic
+/// background retry (AGENT_INSTRUCTION.md section 5; PLAN.md 1.6).
 /// </summary>
 public sealed class OutboxMessage
 {
@@ -29,13 +30,4 @@ public sealed class OutboxMessage
 
     public DateTime CreatedUtc { get; set; }
 
-    public DateTime UpdatedUtc { get; set; }
-}
-
-public enum OutboxStatus
-{
-    Pending,
-    Sent,
-    Failed,
-    Manual,
-}
+    pub

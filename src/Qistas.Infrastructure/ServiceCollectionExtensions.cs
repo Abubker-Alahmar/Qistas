@@ -15,10 +15,12 @@ namespace Qistas.Infrastructure;
 
 /// <summary>
 /// Wires up every Infrastructure + Application service: options binding, the resilience
-/// pipeline (Polly v8 retry/circuit-breaker/timeout, PLAN.md 1.3), the token service, the
-/// D365 typed client, the SQLite outbox, the DPAPI/no-op secret protector, and the
-/// Application-layer use case handlers. Shared by Qistas.Api and Qistas.Worker so both
-/// hosts get an identical, consistently-configured pipeline.
+/// pipeline (Polly v8 inline retry/circuit-breaker/timeout, PLAN.md 1.3), the token
+/// service, the D365 typed client, the SQLite failed-message archive + integration log,
+/// the DPAPI/no-op secret protector, and the Application-layer use case handlers.
+/// Retry model (owner decision): Polly retries INLINE per configuration while the truck
+/// is on the scale; on exhaustion the message is archived in the database for MANUAL
+/// employee action via the review screen -- there is no automatic background re-sender.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
@@ -30,6 +32,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IActiveEnvironmentProvider, ActiveEnvironmentProvider>();
         services.AddSingleton<ITokenService, AzureAdTokenService>();
         services.AddSingleton<IOutboxRepository, SqliteOutboxRepository>();
+        services.AddSingleton<Application.Logging.IIntegrationLogRepository, Logging.SqliteIntegrationLogRepository>();
 
         services.AddSingleton<ISecretProtector>(_ =>
             OperatingSystem.IsWindows()
@@ -66,12 +69,3 @@ public static class ServiceCollectionExtensions
                 builder.AddTimeout(TimeSpan.FromSeconds(retryOptions.TimeoutSeconds));
             });
 
-        services.AddScoped<SubmitEntryWeightHandler>();
-        services.AddScoped<GetLoadForValidationHandler>();
-        services.AddScoped<SubmitExitWeightHandler>();
-        services.AddScoped<RetryOutboxMessageHandler>();
-        services.AddScoped<MarkOutboxManualHandler>();
-
-        return services;
-    }
-}

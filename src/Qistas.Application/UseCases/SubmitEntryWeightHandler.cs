@@ -9,11 +9,12 @@ using Qistas.Domain.Validation;
 namespace Qistas.Application.UseCases;
 
 /// <summary>
-/// Use case for Weight-In: validates locally, calls setEntryWeightDetails, and -- only
-/// when the transport itself is exhausted (not on a business rejection from D365) --
-/// queues the message to the outbox for later retry (AGENT_INSTRUCTION.md section 5).
-/// Only ever invoked for Sales Order loads with a LoadId (scope guarded by the caller /
-/// Balance side per AGENT_INSTRUCTION.md section 1).
+/// Use case for Weight-In: validates locally, calls setEntryWeightDetails (Polly retries
+/// inline per configuration -- short, because the truck is waiting), and -- only when the
+/// transport itself is exhausted (not on a business rejection from D365) -- ARCHIVES the
+/// message in the database for manual employee action via the review screen. No automatic
+/// background retry (AGENT_INSTRUCTION.md section 5). Only ever invoked for Sales Order
+/// loads with a LoadId (scope guarded by the caller / Balance side).
 /// </summary>
 public sealed class SubmitEntryWeightHandler
 {
@@ -50,9 +51,9 @@ public sealed class SubmitEntryWeightHandler
 
         if (!callResult.TransportSucceeded)
         {
-            await QueueForRetryAsync(submission, environment, request, callResult.TransportError, cancellationToken);
+            await ArchiveFailedAsync(submission, environment, request, callResult.TransportError, cancellationToken);
             return D365OperationResult.Fail(
-                $"Could not reach D365 ({callResult.TransportError}). Queued for retry.", rawJson: null);
+                $"Could not reach D365 ({callResult.TransportError}). Saved locally and archived for manual review -- the truck may proceed.", rawJson: null);
         }
 
         var domainResult = EntryWeightMapper.ToDomainResult(callResult.Response, callResult.RawResponseJson, callResult.TransportError);
@@ -73,7 +74,4 @@ public sealed class SubmitEntryWeightHandler
         D365Environment environment,
         SetEntryWeightDetailsRequest request,
         string? responseJson,
-        CancellationToken cancellationToken)
-    {
-        var payloadJson = System.Text.Json.JsonSerializer.Serialize(request, QistasJson.Options);
-        var now = _clock.UtcNow.UtcDa
+        Cancella

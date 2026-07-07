@@ -9,10 +9,11 @@ using Qistas.Domain.Models;
 namespace Qistas.Application.UseCases;
 
 /// <summary>
-/// Re-sends a single outbox message (manual "Retry now" from the admin screen, or the
-/// Worker's periodic sweep). Deserializes the stored request payload by
-/// <see cref="OutboxMessage.Operation"/> and replays it against the same environment it
-/// was originally queued for (AGENT_INSTRUCTION.md section 4: never cross environments).
+/// Re-sends a single archived message -- MANUAL employee action only ("Retry now" on the
+/// review screen); there is no automatic background sweep. Deserializes the stored
+/// request payload by <see cref="OutboxMessage.Operation"/> and replays it against the
+/// same environment it was originally archived for (AGENT_INSTRUCTION.md section 4:
+/// never cross environments).
 /// </summary>
 public sealed class RetryOutboxMessageHandler
 {
@@ -99,6 +100,4 @@ public sealed class RetryOutboxMessageHandler
 
         // Ghost-success / duplicate handling applies on retries too -- see
         // ExitWeightMapper.ToDomainResult and AGENT_INSTRUCTION.md section 6.
-        return ExitWeightMapper.ToDomainResult(callResult.Response, callResult.RawResponseJson, callResult.TransportError);
-    }
-}
+        return ExitWeightMapper.ToDomainResult(callResult.Response, callResult.RawResponseJso

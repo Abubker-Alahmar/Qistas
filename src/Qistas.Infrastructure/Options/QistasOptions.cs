@@ -58,10 +58,7 @@ public sealed class RetryOptions
 
 public sealed class OutboxOptions
 {
+    /// <summary>SQLite file holding the failed-message archive (Outbox) + IntegrationLog tables.</summary>
     public string SqlitePath { get; set; } = "qistas-outbox.db";
 
-    /// <summary>How many rows the Worker pulls per poll cycle.</summary>
-    public int BatchSize { get; set; } = 25;
-
-    public int PollIntervalSeconds { get; set; } = 30;
-}
+    /// <summary>Unused since the automatic background retry worker w

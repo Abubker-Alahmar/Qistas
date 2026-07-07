@@ -71,9 +71,9 @@ public sealed class SubmitExitWeightHandler
 
         if (!callResult.TransportSucceeded)
         {
-            await QueueForRetryAsync(submission, environment, request, callResult.TransportError, cancellationToken);
+            await ArchiveFailedAsync(submission, environment, request, callResult.TransportError, cancellationToken);
             return D365OperationResult.Fail(
-                $"Could not reach D365 ({callResult.TransportError}). Queued for retry -- do not resubmit manually.",
+                $"Could not reach D365 ({callResult.TransportError}). Saved locally and archived for manual review -- do not re-weigh; an employee will re-send or enter it in D365.",
                 rawJson: null);
         }
 
@@ -87,7 +87,7 @@ public sealed class SubmitExitWeightHandler
         return domainResult;
     }
 
-    private async Task QueueForRetryAsync(
+    private async Task ArchiveFailedAsync(
         ExitWeightSubmission submission,
         D365Environment environment,
         SetExitWeightDetailsRequest request,
@@ -133,7 +133,4 @@ public sealed class SubmitExitWeightHandler
             Attempts = 1,
             LastResponseJson = responseJson,
             CreatedUtc = now,
-            UpdatedUtc = now,
-        }, cancellationToken);
-    }
-}
+    

@@ -14,12 +14,21 @@ Directory.Build.props          # net8.0, nullable enable, implicit usings, share
 src/
   Qistas.Domain/                # D365 contract DTOs (with the required typos), domain models,
                                  # validation rules, JSON converters -- no dependencies
-  Qistas.Application/           # Use cases, manual (non-AutoMapper) mappers, outbox/service abstractions
-  Qistas.Infrastructure/        # TokenService, D365Client (Polly resilience), SQLite outbox,
-                                 # DPAPI secret protector, DI wiring (ServiceCollectionExtensions)
+  Qistas.Application/           # Use cases, manual (non-AutoMapper) mappers, archive/log abstractions
+  Qistas.Infrastructure/        # TokenService, D365Client (Polly inline resilience), SQLite
+                                 # failed-message archive + IntegrationLog, DPAPI secret protector,
+                                 # DI wiring (ServiceCollectionExtensions)
   Qistas.Api/                   # ASP.NET Core Minimal API host -- Balance-facing + admin endpoints
-  Qistas.Worker/                # BackgroundService that retries queued outbox messages
 ```
+
+## Failure handling (owner decision)
+
+When D365 is down, Polly retries **inline** per configuration (`Qistas:Retry` -- keep it
+short, the truck is on the scale). If still failing, the message is **archived in the
+database** with `Status=Failed`; the truck proceeds (the transaction is already saved in
+Balance). An **employee** then handles it from the review screen: "Retry now" re-sends to
+D365, or "Mark manual" records that it was entered in D365 by hand. There is **no
+automatic background re-sender**.
 
 ## Running
 
@@ -29,14 +38,7 @@ build/run on a machine with it installed).
 ```powershell
 # Api (Swagger UI at https://localhost:<port>/swagger)
 dotnet run --project src/Qistas.Api
-
-# Worker (retries outbox messages in the background)
-dotnet run --project src/Qistas.Worker
 ```
-
-Both hosts share `Qistas.Infrastructure.ServiceCollectionExtensions.AddQistasInfrastructure`,
-so they always resolve an identical, consistently-configured pipeline (same resilience
-policy, same outbox repository type, same token cache implementation).
 
 ## Swagger
 
@@ -46,8 +48,9 @@ endpoint group:
 - `Balance API` (`/swagger/balance/swagger.json`) -- the three D365 call points
   (`POST /api/scale/entry-weight`, `GET /api/scale/loads/{loadId}`,
   `POST /api/scale/exit-weight`) plus `GET /api/health`.
-- `Qistas Developer API` (`/swagger/admin/swagger.json`) -- outbox review/retry/manual,
-  `GET /api/admin/config`, `GET /api/admin/token-status`.
+- `Qistas Developer API` (`/swagger/admin/swagger.json`) -- archived-message review/
+  retry/manual, `GET /api/admin/logs` (database log), `GET /api/admin/config`,
+  `GET /api/admin/token-status`.
 
 Both documents show the currently active D365 environment (Dev/Test/Prod) in their
 description banner, so it's never ambiguous which environment a developer is looking at
@@ -55,10 +58,10 @@ description banner, so it's never ambiguous which environment a developer is loo
 
 ## Configuration
 
-`appsettings.json` in `Qistas.Api` / `Qistas.Worker` defines the `Qistas:` section:
-`ActiveEnvironment`, `Tenant`, `Environments:{Dev,Test,Prod}` (BaseUrl/CompanyId/ClientId/
-ClientSecretProtected), `Retry` (Polly settings), `Outbox` (SQLite path + Worker poll
-interval/batch size).
+`appsettings.json` in `Qistas.Api` defines the `Qistas:` section: `ActiveEnvironment`,
+`Tenant`, `Environments:{Dev,Test,Prod}` (BaseUrl/CompanyId/ClientId/
+ClientSecretProtected), `Retry` (Polly inline retry settings -- keep attempts/timeout
+short so trucks are never held), `Outbox` (SQLite path).
 
 **No real credentials are committed.** `ClientId` and `ClientSecretProtected` are empty
 strings in the checked-in `appsettings.json` for every environment. The Dev/Test
@@ -74,15 +77,11 @@ and must be rotated before use; configure real values via:
 `ClientSecretProtected` must contain a value produced by `ISecretProtector.Protect(...)`
 (DPAPI on Windows, CurrentUser scope) -- never a plaintext secret.
 
-## Outbox
+## Archive + integration log database
 
-SQLite database (`Qistas:Outbox:SqlitePath`, default `qistas-outbox.db` relative to each
-process's working directory). The table is created automatically on first use. If you run
-Api and Worker from different working directories, point both at the same **absolute**
-path so they share one outbox.
+One SQLite database (`Qistas:Outbox:SqlitePath`, default `qistas-outbox.db` relative to
+the Api's working directory -- use an absolute path in production) holds two tables,
+both created automatically on first use:
 
-## Notes on contract fidelity
-
-Every D365 contract DTO in `Qistas.Domain.Contracts` preserves the documented typos
-exactly (`Telorence`, `VehicleLicenselId`, `Userid` request / `UserId` response,
-`Vehichle*` in `LoadHeader`). Do not "fix" these -- see `AGENT_INSTRUCTION.md` section 2.
+- `Outbox` -- failed-message archive awaiting employee action (review screen).
+- `IntegrationLog` -- one row per D365 call att

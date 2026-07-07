@@ -9,8 +9,8 @@ Reference: `../Balance/CLAUDE.md` (Part 2, §12–§17). Operating rules: `AGENT
 ## Phase 1 — Foundation (Qistas solution)
 
 ### 1.1 Scaffolding
-- [x] `Qistas.sln` with projects: `Qistas.Api` (Minimal API host), `Qistas.Application`, `Qistas.Domain`, `Qistas.Infrastructure`, `Qistas.Worker` — all **.NET 8**
-- [x] Project references: Api → Application + Infrastructure; Application → Domain; Infrastructure → Application + Domain; Worker → Application + Infrastructure
+- [x] `Qistas.sln` with projects: `Qistas.Api` (Minimal API host), `Qistas.Application`, `Qistas.Domain`, `Qistas.Infrastructure` — all **.NET 8** (~~Qistas.Worker~~ removed per owner decision: no automatic background retry)
+- [x] Project references: Api → Application + Infrastructure; Application → Domain; Infrastructure → Application + Domain
 - [x] `.gitignore` (.NET 8: bin/obj, .vs/, *.user, appsettings.Development.json, secrets)
 - [x] `appsettings.json` layout: `Qistas:D365` (per-environment BaseUrl/tenant/CompanyId/clientId), `Qistas:Retry` (maxAttempts, backoffSeconds, timeoutSeconds), `Qistas:ActiveEnvironment` (Dev/Test/Prod). **No secrets in files that get committed.**
 
@@ -39,14 +39,15 @@ Reference: `../Balance/CLAUDE.md` (Part 2, §12–§17). Operating rules: `AGENT
 - [x] Swagger: **two documents** — "Balance API" and "Qistas Developer API" — separate `SwaggerDoc` entries + separate UI endpoints, endpoints tagged via endpoint metadata group names
 - [x] Show active environment (Dev/Test/Prod) in health + Swagger description (edge case #20)
 
-### 1.6 Worker (`Qistas.Worker`)
-- [x] `BackgroundService` polling Outbox for Pending/Failed below max attempts; retries with backoff; moves to `Failed` (manual review) on exhaustion
-- [x] Startup reconciliation hook: expose outbox status so Balance can reconcile `Table_StillInside` after crash (edge case #17)
+### 1.6 Failure handling (revised per owner decision 2026-07-07)
+- [x] ~~Worker BackgroundService auto-retry~~ REMOVED — retry is Polly INLINE only (short, configurable; the truck cannot wait); on exhaustion the message is archived (`Outbox` table, `Status=Failed`) for MANUAL employee action (Retry now / Mark manual on the review screen)
+- [x] Database logging: `IntegrationLog` table (one row per D365 call attempt: request, response, outcome, duration) + `GET /api/admin/logs` — logs in DB, not only Serilog files
+- [x] Startup reconciliation hook: archive status exposed via `/api/admin/outbox` so Balance can reconcile `Table_StillInside` after crash (edge case #17)
 
 ### 1.7 Phase 1 gate
-- [ ] Reviewer agent pass against AGENT_INSTRUCTION.md + §16 edge cases
-- [ ] `dotnet build` clean, tests green (see Phase 3 unit tests, written alongside)
-- [ ] Git: Qistas repo initialized, committed (GitHub push deferred — local only per owner decision)
+- [x] Reviewer agent pass against AGENT_INSTRUCTION.md + §16 edge cases — PASS (health-probe gap + response-dispose fixed after review; wire contracts corrected to literal `_request` envelope + flat `D365Response` per APIs V2.0)
+- [ ] `dotnet build` clean, tests green — **pending: no .NET SDK in this environment; run `dotnet build && dotnet test` on the Windows machine**
+- [x] Git: Qistas repo initialized, committed (`ba1d390`) — GitHub push deferred, local only per owner decision
 
 ---
 
@@ -54,7 +55,7 @@ Reference: `../Balance/CLAUDE.md` (Part 2, §12–§17). Operating rules: `AGENT
 
 Precondition: Balance git baseline commit exists (clean "before" state).
 
-- [ ] `git init` in Balance folder + WinForms/.NET 3.5 `.gitignore` + baseline commit
+- [x] `git init` in Balance folder + WinForms/.NET 3.5 `.gitignore` + baseline commit (`b3eba37`, 132 files, clean "before" state)
 - [ ] DB schema: `LoadId`, `IntegrationStatus` on `Table_Transaction` + `Table_StillInside`; license fields on `Table_Drivers`/`Table_Trucks` (migration script, own commit)
 - [ ] `frmBuyWeight.cs` Weight-In: LoadId (first field), DriverNationalId, DriverLicenseId + expiry, VehicleLicenselId + expiry, optional IsInternal/VehicleType (own commit)
 - [ ] Call point 1: Weight-In save → `POST localhost/api/scale/entry-weight` (WebRequest, async, non-blocking) — Sales Order loads only (`BuySell = "مبيعات"` + LoadId present)
@@ -70,9 +71,4 @@ Precondition: Balance git baseline commit exists (clean "before" state).
 ## Phase 3 — Test & deploy
 
 - [x] Unit tests (`Qistas.Tests`): token caching + 401 retry-once, Polly retry/backoff, outbox insert-on-exhaustion, idempotent duplicate `ScaleSystemReferenceId`, tolerance breach, license expiry, sentinel dates, **InvariantCulture serialization under `ar-LY` culture**
-- [ ] Integration tests: fake D365 server (WireMock.Net) — ghost-success/timeout-then-duplicate, Status=false paths, `$id` metadata parsing, `Bell` vs `BELL`
-- [ ] Load tests: **skipped unless coder+reviewer flag concurrency risk** in token cache/outbox worker — decision recorded here: skipped — token cache and outbox covered by unit tests; no concurrency risk flagged by reviewer
-- [ ] Postman parity on Dev environment (compare Qistas request bytes vs Alsahl Collection)
-- [ ] UAT on `alsahl-test.sandbox...`, then Prod cutover
-- [ ] Rotate client secrets before Production (Dev/Test secrets in shared docs are compromised); confirm Prod credentials with Ferdas
-- [ ] Confirm with Ferdas: token call is standard PO
+- [ ] Integration tests: fake D365 server (WireMock.Net) — 

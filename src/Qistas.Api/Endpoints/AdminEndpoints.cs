@@ -23,15 +23,19 @@ public static class AdminEndpoints
 
         group.MapGet("/outbox", GetOutbox)
             .WithName("GetOutbox")
-            .WithSummary("List outbox messages, optionally filtered by status.");
+            .WithSummary("List archived messages (failed after inline Polly retries), optionally filtered by status. This is the employee review list -- nothing here is retried automatically.");
 
         group.MapPost("/outbox/{id:long}/retry", RetryOutboxMessage)
             .WithName("RetryOutboxMessage")
-            .WithSummary("Manually retry a single outbox message now.");
+            .WithSummary("Employee action: re-send a single archived message to D365 now.");
 
         group.MapPost("/outbox/{id:long}/manual", MarkOutboxManual)
             .WithName("MarkOutboxManual")
-            .WithSummary("Mark an outbox message as resolved manually (excludes it from further automated retries).");
+            .WithSummary("Employee action: mark an archived message as handled manually (e.g. entered directly in D365).");
+
+        group.MapGet("/logs", GetLogs)
+            .WithName("GetIntegrationLogs")
+            .WithSummary("Integration log from the database: one row per D365 call attempt (request, response, outcome, duration).");
 
         group.MapGet("/config", GetConfig)
             .WithName("GetConfig")
@@ -87,6 +91,18 @@ public static class AdminEndpoints
         return found ? Results.Ok(new { id, status = "Manual" }) : Results.NotFound();
     }
 
+    private static async Task<IResult> GetLogs(
+        string? operation,
+        bool? success,
+        int? take,
+        Qistas.Application.Logging.IIntegrationLogRepository logRepository,
+        CancellationToken cancellationToken)
+    {
+        int limit = take is > 0 and <= 1000 ? take.Value : 100;
+        var entries = await logRepository.GetRecentAsync(operation, success, limit, cancellationToken);
+        return Results.Ok(entries);
+    }
+
     private static IResult GetConfig(IActiveEnvironmentProvider environmentProvider)
     {
         var active = environmentProvider.GetActiveEnvironment();
@@ -116,23 +132,4 @@ public static class AdminEndpoints
 
     private static IResult PutConfig(PutConfigRequest request, IActiveEnvironmentProvider environmentProvider)
     {
-        if (!Enum.TryParse<D365Environment>(request.ActiveEnvironment, ignoreCase: true, out var environment))
-        {
-            return Results.BadRequest(new { error = $"Unknown environment '{request.ActiveEnvironment}'. Expected Dev/Test/Prod." });
-        }
-
-        environmentProvider.SetActiveEnvironment(environment);
-        return Results.Ok(new { ActiveEnvironment = environment.ToString() });
-    }
-}
-
-/// <summary>
-/// Body for PUT /api/admin/config. Intentionally minimal: only the active environment is
-/// switchable through this endpoint. BaseUrl/ClientId/ClientSecret changes require editing
-/// configuration (appsettings/user-secrets/env-vars) and a restart -- accepting secrets
-/// over an HTTP PUT would violate AGENT_INSTRUCTION.md section 7.
-/// </summary>
-public sealed class PutConfigRequest
-{
-    public required string ActiveEnvironment { get; init; }
-}
+        if (!Enum.TryParse<D365Environment>(request.ActiveEnvironment, ign

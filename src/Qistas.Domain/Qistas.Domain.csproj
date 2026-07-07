@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Qistas.Domain</AssemblyName>
+  </PropertyGroup>
+
+</Project>

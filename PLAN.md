@@ -56,8 +56,9 @@ Reference: `../Balance/CLAUDE.md` (Part 2, §12–§17). Operating rules: `AGENT
 Precondition: Balance git baseline commit exists (clean "before" state).
 
 - [x] `git init` in Balance folder + WinForms/.NET 3.5 `.gitignore` + baseline commit (`b3eba37`, 132 files, clean "before" state)
-- [ ] DB schema: `LoadId`, `IntegrationStatus` on `Table_Transaction` + `Table_StillInside`; license fields on `Table_Drivers`/`Table_Trucks` (migration script, own commit)
-- [ ] `frmBuyWeight.cs` Weight-In: LoadId (first field), DriverNationalId, DriverLicenseId + expiry, VehicleLicenselId + expiry, optional IsInternal/VehicleType (own commit)
+- [x] DB schema: `LoadId`, `IntegrationStatus` on `Table_Transaction` + `Table_StillInside`; license fields (own commit -- `ad18fb0`, `Integration/Migration_D365_Integration.sql`; corrected in `a03fed9` -- see below)
+- [x] `frmBuyWeight.cs` Weight-In: LoadId, DriverNationalId, DriverLicenseId + expiry, VehicleLicenselId + expiry, optional IsInternal/VehicleType (own commit -- `b961523`). Implemented as a separate `frmLoadIntegrationDetails` popup dialog rather than inline fields: the Weight-In panel/header has no free space for ~8 more controls, and a designer-generated file this size is unsafe to hand-edit in this environment (see session notes). A small trigger button is added programmatically in `frmBuyWeight.cs` (not via the .Designer.cs) so the existing generated layout is never touched.
+- [x] Correction: `Table_Drivers` is unused anywhere in the app -- moved driver license fields from `Table_Drivers` onto `Table_Trucks` (Balance's real driver+truck record, upserted by `AddUpdate_TruckWeightIn`); prefill + persistence wired there instead (own commit -- `a03fed9`). Same commit also registered the new form in `Balance.csproj` (it was on disk but not in the project -- would not have built) and repaired a pre-existing truncated ending in `Balance.csproj` unrelated to this work.
 - [ ] Call point 1: Weight-In save → `POST localhost/api/scale/entry-weight` (WebRequest, async, non-blocking) — Sales Order loads only (`BuySell = "مبيعات"` + LoadId present)
 - [ ] Call point 2: Weight-Out open → `GET /api/scale/loads/{loadId}`, display lines, local tolerance validation
 - [ ] Call point 3: Weight-Out save → `POST /api/scale/exit-weight` with `ScaleSystemReferenceId = Transaction GUID`
@@ -71,4 +72,13 @@ Precondition: Balance git baseline commit exists (clean "before" state).
 ## Phase 3 — Test & deploy
 
 - [x] Unit tests (`Qistas.Tests`): token caching + 401 retry-once, Polly retry/backoff, outbox insert-on-exhaustion, idempotent duplicate `ScaleSystemReferenceId`, tolerance breach, license expiry, sentinel dates, **InvariantCulture serialization under `ar-LY` culture**
-- [ ] Integration tests: fake D365 server (WireMock.Net) — 
+- [ ] Integration tests: fake D365 server (WireMock.Net) — ghost-success/timeout-then-duplicate, Status=false paths, `$id` metadata parsing, `Bell` vs `BELL`
+- [ ] Load tests: **skipped unless coder+reviewer flag concurrency risk** in token cache/outbox worker — decision recorded here: skipped — token cache and outbox covered by unit tests; no concurrency risk flagged by reviewer
+- [ ] Postman parity on Dev environment (compare Qistas request bytes vs Alsahl Collection)
+- [ ] UAT on `alsahl-test.sandbox...`, then Prod cutover
+- [ ] Rotate client secrets before Production (Dev/Test secrets in shared docs are compromised); confirm Prod credentials with Ferdas
+- [ ] Confirm with Ferdas: token call is standard POST form-urlencoded (Postman collection shows GET-with-body)
+
+---
+
+*v1.0 — 2026-07-07*

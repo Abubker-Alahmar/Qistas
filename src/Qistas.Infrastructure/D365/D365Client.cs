@@ -20,31 +20,17 @@ namespace Qistas.Infrastructure.D365;
 /// 401 it invalidates the cached token, acquires a fresh one, and retries the call
 /// exactly once (AGENT_INSTRUCTION.md section 4) before giving up.
 /// </summary>
-public sealed class D365Client : ID365Client
+public sealed class D365Client(
+    HttpClient httpClient,
+    ITokenService tokenService,
+    IActiveEnvironmentProvider environmentProvider,
+    ILogger<D365Client> logger,
+    Application.Logging.IIntegrationLogRepository integrationLog)
+    : ID365Client
 {
     private const string EntryOperation = "setEntryWeightDetails";
     private const string GetLoadOperation = "getLoadDetails";
     private const string ExitOperation = "setExitWeightDetails";
-
-    private readonly HttpClient _httpClient;
-    private readonly ITokenService _tokenService;
-    private readonly IActiveEnvironmentProvider _environmentProvider;
-    private readonly ILogger<D365Client> _logger;
-    private readonly Application.Logging.IIntegrationLogRepository _integrationLog;
-
-    public D365Client(
-        HttpClient httpClient,
-        ITokenService tokenService,
-        IActiveEnvironmentProvider environmentProvider,
-        ILogger<D365Client> logger,
-        Application.Logging.IIntegrationLogRepository integrationLog)
-    {
-        _httpClient = httpClient;
-        _tokenService = tokenService;
-        _environmentProvider = environmentProvider;
-        _logger = logger;
-        _integrationLog = integrationLog;
-    }
 
     public async Task<D365CallResult<D365Response>> SetEntryWeightDetailsAsync(
         SetEntryWeightDetailsRequest request, D365Environment environment, CancellationToken cancellationToken)
@@ -67,12 +53,12 @@ public sealed class D365Client : ID365Client
         // Every operation shares the same envelope: a single top-level "_request" property
         // (APIs V2.0 Common Request Scheme) and the flat common response (D365Response).
         var envelope = new D365RequestEnvelope<TRequest> { Request = request };
-        var settings = _environmentProvider.GetSettings(environment);
+        var settings = environmentProvider.GetSettings(environment);
         string url = CombineUrl(settings.BaseUrl, operation);
         string requestJson = JsonSerializer.Serialize(envelope, QistasJson.Options);
 
         string redactedRequest = SecretRedactor.Redact(requestJson);
-        _logger.LogInformation(
+        logger.LogInformation(
             "D365 {Operation} request ({Environment}): {RequestBody}",
             operation, environment, redactedRequest);
 
@@ -85,7 +71,7 @@ public sealed class D365Client : ID365Client
             stopwatch.Stop();
 
             string redactedResponse = SecretRedactor.Redact(body);
-            _logger.LogInformation(
+            logger.LogInformation(
                 "D365 {Operation} response ({Environment}, {StatusCode}): {ResponseBody}",
                 operation, environment, (int)httpResponse.StatusCode, redactedResponse);
 
@@ -122,7 +108,7 @@ public sealed class D365Client : ID365Client
             // caller (Application use case) then ARCHIVES the message in the database for
             // manual employee action; there is no automatic background re-sender
             // (AGENT_INSTRUCTION.md section 5).
-            _logger.LogError(ex, "D365 {Operation} failed for environment {Environment} after resilience pipeline exhaustion.", operation, environment);
+            logger.LogError(ex, "D365 {Operation} failed for environment {Environment} after resilience pipeline exhaustion.", operation, environment);
             await WriteDbLogAsync(environment, operation, success: false, httpStatusCode: null,
                 redactedRequest, responseJson: null, ex.Message, stopwatch.ElapsedMilliseconds, cancellationToken);
             return D365CallResult<D365Response>.TransportFailure(ex.Message);
@@ -141,7 +127,7 @@ public sealed class D365Client : ID365Client
     {
         try
         {
-            await _integrationLog.AddAsync(new Application.Logging.IntegrationLogEntry
+            await integrationLog.AddAsync(new Application.Logging.IntegrationLogEntry
             {
                 TimestampUtc = DateTime.UtcNow,
                 Environment = environment.ToString(),
@@ -152,4 +138,16 @@ public sealed class D365Client : ID365Client
                 ResponseJson = responseJson,
                 Error = error,
                 DurationMs = durationMs,
-   
+            }, cancellationToken);
+        }
+        catch (Exception logEx)
+        {
+            logger.LogError(logEx, "Failed to write integration log row for {Operation}.", operation);
+        }
+    }
+
+    private async Task<(HttpResponseMessage response, string body)> SendWithAuthRetryAsync(
+        string url, string requestJson, D365Environment environment, CancellationToken cancellationToken)
+    {
+        var token = await tokenService.GetAccessTokenAsync(environment, cancellationToken);
+        var (response, body) = await PostAsync(u

@@ -64,8 +64,8 @@ Precondition: Balance git baseline commit exists (clean "before" state).
 - [x] Call point 3: Weight-Out save → `POST /api/scale/exit-weight` with `ScaleSystemReferenceId = Transaction GUID` — uses the original Weight-In StillInside GUID (not the new Table_Transaction GUID) so entry/exit pair correctly; `toleranceKg` = |Balance net weight - D365 fetched total| when available, else 0; Table_Transaction INSERT extended with LoadId+IntegrationStatus; async/non-blocking (own commit — `8749007`)
 - [x] Admin settings screen (environment, URLs, retry, timeouts — reads/writes Qistas config API) — new code-only `frmQistasAdmin` (opened from `frmSettings.cs`): edits Balance-local QistasBaseUrl/Timeout/CompanyId (Table_InitialSettings, applied live); read-only Qistas config/token-status/health-probe snapshot; switches Qistas active D365 environment via `PUT /api/admin/config` (no secrets/URLs sent, per AGENT_INSTRUCTION.md section 7) (own commit — `a3eacbb`)
 - [x] Failed-message review screen (grid over `GET /api/admin/outbox`, Retry now / Mark manual) — new code-only `frmQistasOutbox` (opened from `frmQistasAdmin`): filterable grid, `POST /api/admin/outbox/{id}/retry` and `POST /api/admin/outbox/{id}/manual` on the selected row; these are the only way an archived message gets resolved since Qistas has no automatic background retry (AGENT_INSTRUCTION.md section 5) (own commit — `2af2481`)
-- [ ] Block or flag edits/deletes in `frmUpdate.cs` on integrated transactions (edge cases #18/#19)
-- [ ] Each bullet = its own logical commit
+- [x] Block or flag edits/deletes in `frmUpdate.cs` on integrated transactions (edge cases #18/#19) — edit (`but_Save_In_Click`), delete, and grid-delete hard-blocked when `Table_Transaction.LoadId` is set; `but_Cancel_WeightOut_Click` (re-weigh after tolerance breach, edge case #16.8) is the one sanctioned exception — now carries LoadId forward into the StillInside revert instead of dropping it, and warns (non-blocking) if exit-weight was already sent (own commit — `f45364a`)
+- [x] Each bullet = its own logical commit
 
 ---
 

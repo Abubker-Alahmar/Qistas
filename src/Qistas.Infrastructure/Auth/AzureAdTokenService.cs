@@ -161,4 +161,20 @@ public sealed class AzureAdTokenService : ITokenService
             _logger.LogError(
                 "Token request failed for environment {Environment}: {StatusCode}",
                 environment, response.StatusCode);
-            t
+            throw new InvalidOperationException($"Token request failed with status {(int)response.StatusCode}.");
+        }
+
+        var tokenResponse = JsonSerializer.Deserialize<AzureAdTokenResponse>(body, QistasJson.Options)
+            ?? throw new InvalidOperationException("Empty token response from Azure AD.");
+
+        int expiresInSeconds = int.TryParse(tokenResponse.ExpiresIn, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 3599;
+
+        var expiresAt = DateTimeOffset.UtcNow.AddSeconds(expiresInSeconds);
+
+        return new CachedToken(tokenResponse.AccessToken, expiresAt);
+    }
+
+    private sealed record CachedToken(string AccessToken, DateTimeOffset ExpiresAtUtc);
+}

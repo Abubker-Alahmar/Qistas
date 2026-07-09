@@ -69,3 +69,12 @@ public static class ServiceCollectionExtensions
                 builder.AddTimeout(TimeSpan.FromSeconds(retryOptions.TimeoutSeconds));
             });
 
+        services.AddScoped<SubmitEntryWeightHandler>();
+        services.AddScoped<GetLoadForValidationHandler>();
+        services.AddScoped<SubmitExitWeightHandler>();
+        services.AddScoped<RetryOutboxMessageHandler>();
+        services.AddScoped<MarkOutboxManualHandler>();
+
+        return services;
+    }
+}

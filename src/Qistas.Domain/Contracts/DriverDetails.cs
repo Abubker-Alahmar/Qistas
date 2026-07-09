@@ -47,4 +47,31 @@ public sealed class DriverDetailsResponse
     [JsonPropertyName("$id")]
     public string? DollarId { get; set; }
 
-    [JsonPropertyName("Dri
+    [JsonPropertyName("DriverNationalId")]
+    public string? DriverNationalId { get; set; }
+
+    [JsonPropertyName("DriverName")]
+    public string? DriverName { get; set; }
+
+    [JsonPropertyName("DriverInternalId")]
+    public string? DriverInternalId { get; set; }
+
+    [JsonPropertyName("IsInternal")]
+    public bool IsInternal { get; set; }
+
+    [JsonPropertyName("DriverLicenseId")]
+    public string? DriverLicenseId { get; set; }
+
+    [JsonPropertyName("DriverLicenseExpiryDate")]
+    public string? DriverLicenseExpiryDate { get; set; }
+
+    [JsonPropertyName("DriverPhone")]
+    public string? DriverPhone { get; set; }
+
+    [JsonPropertyName("CompanyId")]
+    public string? CompanyId { get; set; }
+
+    /// <summary>Contract quirk: capital "I" in the response only.</summary>
+    [JsonPropertyName("UserId")]
+    public string? UserId { get; set; }
+}

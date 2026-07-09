@@ -132,4 +132,23 @@ public static class AdminEndpoints
 
     private static IResult PutConfig(PutConfigRequest request, IActiveEnvironmentProvider environmentProvider)
     {
-        if (!Enum.TryParse<D365Environment>(request.ActiveEnvironment, ign
+        if (!Enum.TryParse<D365Environment>(request.ActiveEnvironment, ignoreCase: true, out var environment))
+        {
+            return Results.BadRequest(new { error = $"Unknown environment '{request.ActiveEnvironment}'. Expected Dev/Test/Prod." });
+        }
+
+        environmentProvider.SetActiveEnvironment(environment);
+        return Results.Ok(new { ActiveEnvironment = environment.ToString() });
+    }
+}
+
+/// <summary>
+/// Body for PUT /api/admin/config. Intentionally minimal: only the active environment is
+/// switchable through this endpoint. BaseUrl/ClientId/ClientSecret changes require editing
+/// configuration (appsettings/user-secrets/env-vars) and a restart -- accepting secrets
+/// over an HTTP PUT would violate AGENT_INSTRUCTION.md section 7.
+/// </summary>
+public sealed class PutConfigRequest
+{
+    public required string ActiveEnvironment { get; init; }
+}

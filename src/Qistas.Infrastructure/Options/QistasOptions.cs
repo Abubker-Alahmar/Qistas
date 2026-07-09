@@ -36,6 +36,14 @@ public sealed class D365EnvironmentOptions
     /// or user-secrets/environment variables.
     /// </summary>
     public string ClientSecretProtected { get; set; } = string.Empty;
+
+    /// <summary>
+    /// PLAINTEXT client_secret -- Dev/Test convenience ONLY (user-secrets, environment
+    /// variable, or an untracked appsettings.Development.json). Used only when
+    /// <see cref="ClientSecretProtected"/> is empty; a warning is logged. NEVER put a
+    /// production secret here and NEVER commit a value (AGENT_INSTRUCTION.md section 7).
+    /// </summary>
+    public string ClientSecret { get; set; } = string.Empty;
 }
 
 public sealed class RetryOptions
@@ -58,7 +66,4 @@ public sealed class RetryOptions
 
 public sealed class OutboxOptions
 {
-    /// <summary>SQLite file holding the failed-message archive (Outbox) + IntegrationLog tables.</summary>
-    public string SqlitePath { get; set; } = "qistas-outbox.db";
-
-    /// <summary>Unused since the automatic background retry worker w
+    /// <summary>SQLite file holding the failed-message archive (Outbox) + Integration

@@ -41,4 +41,9 @@ public sealed class D365CallResult<TResponse>
         RawResponseJson = rawJson,
     };
 
-    public static D365CallResu
+    public static D365CallResult<TResponse> TransportFailure(string error) => new()
+    {
+        TransportSucceeded = false,
+        TransportError = error,
+    };
+}

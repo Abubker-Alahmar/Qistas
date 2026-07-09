@@ -28,4 +28,8 @@ public sealed class LoadLineInfo
     public required string ItemId { get; init; }
     public string? ItemName { get; init; }
     public string? ItemDescription { get; init; }
- 
+    public string? BatchNumber { get; init; }
+    public decimal QuantityKg { get; init; }
+    public decimal NetWeightKg { get; init; }
+    public decimal GrossWeightKg { get; init; }
+}

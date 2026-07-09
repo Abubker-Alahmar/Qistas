@@ -33,4 +33,24 @@ public sealed class LoadLine
     public decimal Qty { get; set; }
 
     [JsonPropertyName("ItemNetWeight")]
-    [JsonCo
+    [JsonConverter(typeof(TwoDecimalConverter))]
+    public decimal ItemNetWeight { get; set; }
+
+    [JsonPropertyName("ItemGrossWeight")]
+    [JsonConverter(typeof(TwoDecimalConverter))]
+    public decimal ItemGrossWeight { get; set; }
+
+    [JsonPropertyName("BatchNumber")]
+    public string? BatchNumber { get; set; }
+
+    /// <summary>Sentinel "1900-01-01T12:00:00" = empty; parsed to null.</summary>
+    [JsonPropertyName("BatchExpirationDate")]
+    [JsonConverter(typeof(LenientNullableDateTimeConverter))]
+    public DateTime? BatchExpirationDate { get; set; }
+
+    [JsonPropertyName("LocationId")]
+    public string? LocationId { get; set; }
+
+    [JsonPropertyName("LocationName")]
+    public string? LocationName { get; set; }
+}

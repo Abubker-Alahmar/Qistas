@@ -133,4 +133,7 @@ public sealed class SubmitExitWeightHandler
             Attempts = 1,
             LastResponseJson = responseJson,
             CreatedUtc = now,
-    
+            UpdatedUtc = now,
+        }, cancellationToken);
+    }
+}

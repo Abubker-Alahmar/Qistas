@@ -41,4 +41,14 @@ public static class LoadDetailsMapper
             Message = response.Message,
             LoadId = header.LoadId,
             // CompanyId lives at the top level of the common response (may differ in
-            
+            // case from the request, e.g. "BELL" -- compare case-insensitively).
+            CompanyId = response.CompanyId,
+            SalesId = header.SalesId,
+            CustAccount = header.CustAccount,
+            CustName = header.CustName,
+            HeaderNetWeightKg = header.TotalNetWeight ?? header.VehichleNetWeight,
+            HeaderGrossWeightKg = header.TotalGrossWeight ?? header.VehichleGrossWeight,
+            Lines = lines,
+        };
+    }
+}

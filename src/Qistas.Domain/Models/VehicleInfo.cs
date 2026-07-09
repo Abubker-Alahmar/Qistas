@@ -7,4 +7,18 @@ namespace Qistas.Domain.Models;
 /// </summary>
 public sealed class VehicleInfo
 {
-    /// <summary>Mandatory in the D365 contract (Balance's TruckNo).
+    /// <summary>Mandatory in the D365 contract (Balance's TruckNo).</summary>
+    public string PlateNumber { get; set; } = string.Empty;
+
+    public string LicenseId { get; set; } = string.Empty;
+    public DateOnly LicenseExpiryDate { get; set; }
+
+    /// <summary>Optional -- one of Truck / Van / Pickup.</summary>
+    public string? VehicleType { get; set; }
+
+    /// <summary>Optional -- Alsahl Group vehicle.</summary>
+    public bool IsInternal { get; set; }
+
+    /// <summary>Optional free text (e.g. trailer number).</summary>
+    public string? Note { get; set; }
+}

@@ -150,4 +150,39 @@ public sealed class D365Client(
         string url, string requestJson, D365Environment environment, CancellationToken cancellationToken)
     {
         var token = await tokenService.GetAccessTokenAsync(environment, cancellationToken);
-        var (response, body) = await PostAsync(u
+        var (response, body) = await PostAsync(url, requestJson, token, cancellationToken);
+
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            return (response, body);
+        }
+
+        // 401: refresh once and retry exactly once (AGENT_INSTRUCTION.md section 4).
+        logger.LogWarning("D365 call to {Url} returned 401 -- invalidating cached token and retrying once.", url);
+        tokenService.InvalidateToken(environment);
+        response.Dispose();
+
+        string freshToken = await tokenService.GetAccessTokenAsync(environment, cancellationToken);
+        return await PostAsync(url, requestJson, freshToken, cancellationToken);
+    }
+
+    private async Task<(HttpResponseMessage response, string body)> PostAsync(
+        string url, string requestJson, string bearerToken, CancellationToken cancellationToken)
+    {
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(requestJson, Encoding.UTF8, "application/json"),
+        };
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+        var response = await httpClient.SendAsync(httpRequest, cancellationToken);
+        string body = await response.Content.ReadAsStringAsync(cancellationToken);
+        return (response, body);
+    }
+
+    private static string CombineUrl(string baseUrl, string operation)
+    {
+        string normalizedBase = baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/";
+        return $"{normalizedBase}api/services/BTOLoadIntServiceGroup/BTOLoadIntService/{operation}";
+    }
+}

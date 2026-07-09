@@ -55,4 +55,11 @@ public sealed class GetLoadForValidationHandler
                 return new LoadValidationResult
                 {
                     Success = false,
-                    Message = $"Load belongs to a different company ({callResult.Response.CompanyId}).
+                    Message = $"Load belongs to a different company ({callResult.Response.CompanyId}).",
+                };
+            }
+        }
+
+        return result;
+    }
+}

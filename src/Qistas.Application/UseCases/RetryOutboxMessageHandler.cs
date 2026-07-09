@@ -100,4 +100,6 @@ public sealed class RetryOutboxMessageHandler
 
         // Ghost-success / duplicate handling applies on retries too -- see
         // ExitWeightMapper.ToDomainResult and AGENT_INSTRUCTION.md section 6.
-        return ExitWeightMapper.ToDomainResult(callResult.Response, callResult.RawResponseJso
+        return ExitWeightMapper.ToDomainResult(callResult.Response, callResult.RawResponseJson, callResult.TransportError);
+    }
+}

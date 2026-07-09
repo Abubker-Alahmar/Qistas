@@ -84,4 +84,59 @@ public static class BalanceEndpoints
     {
         var environment = environmentProvider.GetActiveEnvironment();
         var settings = environmentProvider.GetSettings(environment);
-        var tokenStatus =
+        var tokenStatus = tokenService.GetStatus(environment);
+
+        // Azure AD and D365 availability are SEPARATE failure states (Balance/CLAUDE.md
+        // #16.4): the token endpoint can be up while D365 is down, and vice versa. A live
+        // probe only runs when ?probe=true so routine polling doesn't hammer either.
+        bool? azureAdReachable = null;
+        string? azureAdError = null;
+        bool? d365Reachable = null;
+        string? d365Error = null;
+
+        if (probe)
+        {
+            try
+            {
+                await tokenService.GetAccessTokenAsync(environment, cancellationToken);
+                azureAdReachable = true;
+            }
+            catch (Exception ex)
+            {
+                azureAdReachable = false;
+                azureAdError = ex.Message;
+            }
+
+            try
+            {
+                using var client = httpClientFactory.CreateClient("QistasHealthProbe");
+                client.Timeout = TimeSpan.FromSeconds(5);
+                using var response = await client.GetAsync(settings.BaseUrl, cancellationToken);
+                // Any HTTP answer (even 401/403) proves the D365 host is reachable.
+                d365Reachable = true;
+            }
+            catch (Exception ex)
+            {
+                d365Reachable = false;
+                d365Error = ex.Message;
+            }
+        }
+
+        return Results.Ok(new
+        {
+            Environment = environment.ToString(),
+            settings.BaseUrl,
+            settings.HasClientSecret,
+            Token = new
+            {
+                tokenStatus.HasToken,
+                tokenStatus.IsExpired,
+                tokenStatus.ExpiresAtUtc,
+            },
+            Probe = probe
+                ? new { AzureAdReachable = azureAdReachable, AzureAdError = azureAdError, D365Reachable = d365Reachable, D365Error = d365Error }
+                : null,
+            TimestampUtc = DateTimeOffset.UtcNow,
+        });
+    }
+}

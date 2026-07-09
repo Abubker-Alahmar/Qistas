@@ -17,4 +17,7 @@ public sealed class ExitWeightSubmission
     public required decimal EntryWeightKg { get; init; }
     public required decimal ExitWeightKg { get; init; }
     public required decimal TotalNetWeightKg { get; init; }
-    public required decimal TotalG
+    public required decimal TotalGrossWeightKg { get; init; }
+    public required decimal ToleranceKg { get; init; }
+    public required DateTimeOffset ExitDateTimeUtc { get; init; }
+}

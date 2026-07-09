@@ -42,4 +42,15 @@ public sealed class LoadHeader
     public decimal? TotalGrossWeight { get; set; }
 
     /// <summary>Contract quirk: "Vehichle" transposition, not "Vehicle".</summary>
-    [JsonProper
+    [JsonPropertyName("VehichleNetWeight")]
+    [JsonConverter(typeof(NullableTwoDecimalConverter))]
+    public decimal? VehichleNetWeight { get; set; }
+
+    /// <summary>Contract quirk: "Vehichle" transposition, not "Vehicle".</summary>
+    [JsonPropertyName("VehichleGrossWeight")]
+    [JsonConverter(typeof(NullableTwoDecimalConverter))]
+    public decimal? VehichleGrossWeight { get; set; }
+
+    [JsonPropertyName("Note")]
+    public string? Note { get; set; }
+}

@@ -124,4 +124,14 @@ public sealed class LoadValidationResultDto
 
     public static LoadValidationResultDto From(LoadValidationResult result) => new()
     {
-    
+        Success = result.Success,
+        Message = result.Message,
+        LoadId = result.LoadId,
+        CompanyId = result.CompanyId,
+        HeaderNetWeightKg = result.HeaderNetWeightKg,
+        HeaderGrossWeightKg = result.HeaderGrossWeightKg,
+        TotalLineNetWeightKg = result.TotalLineNetWeightKg,
+        TotalLineGrossWeightKg = result.TotalLineGrossWeightKg,
+        Lines = result.Lines,
+    };
+}

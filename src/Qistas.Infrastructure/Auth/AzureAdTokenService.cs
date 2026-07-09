@@ -102,9 +102,24 @@ public sealed class AzureAdTokenService : ITokenService
         string clientSecret;
         try
         {
-            clientSecret = string.IsNullOrEmpty(envOptions.ClientSecretProtected)
-                ? string.Empty
-                : _secretProtector.Unprotect(envOptions.ClientSecretProtected);
+            if (!string.IsNullOrEmpty(envOptions.ClientSecretProtected))
+            {
+                clientSecret = _secretProtector.Unprotect(envOptions.ClientSecretProtected);
+            }
+            else if (!string.IsNullOrEmpty(envOptions.ClientSecret))
+            {
+                // Dev/Test convenience fallback (plaintext from user-secrets/env-vars/
+                // untracked appsettings). Warn on every acquisition so it cannot slip
+                // into production unnoticed (AGENT_INSTRUCTION.md section 7).
+                _logger.LogWarning(
+                    "Environment '{Environment}' is using a PLAINTEXT ClientSecret. Acceptable for Dev/Test only -- use ClientSecretProtected (DPAPI) in production.",
+                    envKey);
+                clientSecret = envOptions.ClientSecret;
+            }
+            else
+            {
+                clientSecret = string.Empty;
+            }
         }
         catch (Exception ex)
         {
@@ -146,4 +161,4 @@ public sealed class AzureAdTokenService : ITokenService
             _logger.LogError(
                 "Token request failed for environment {Environment}: {StatusCode}",
                 environment, response.StatusCode);
-            throw new InvalidOperationException($"Token r
+            t

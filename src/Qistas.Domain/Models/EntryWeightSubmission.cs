@@ -17,4 +17,9 @@ public sealed class EntryWeightSubmission
     /// kept for outbox correlation.</summary>
     public required string ScaleSystemReferenceId { get; init; }
 
-    public required decimal EntryWeight
+    public required decimal EntryWeightKg { get; init; }
+    public required DateTimeOffset EntryDateTimeUtc { get; init; }
+
+    public required DriverInfo Driver { get; init; }
+    public required VehicleInfo Vehicle { get; init; }
+}

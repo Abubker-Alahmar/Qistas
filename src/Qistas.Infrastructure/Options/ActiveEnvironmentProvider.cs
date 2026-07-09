@@ -64,6 +64,5 @@ public sealed class ActiveEnvironmentProvider : IActiveEnvironmentProvider
             options.Tenant,
             envOptions.CompanyId,
             envOptions.ClientId,
-            HasClientSecret: !string.IsNullOrEmpty(envOptions.ClientSecretProtected));
-    }
-}
+            HasClientSecret: !string.IsNullOrEmpty(envOptions.ClientSecretProtected)
+          

@@ -30,4 +30,13 @@ public sealed class OutboxMessage
 
     public DateTime CreatedUtc { get; set; }
 
-    pub
+    public DateTime UpdatedUtc { get; set; }
+}
+
+public enum OutboxStatus
+{
+    Pending,
+    Sent,
+    Failed,
+    Manual,
+}

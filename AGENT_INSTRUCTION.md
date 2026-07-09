@@ -78,4 +78,11 @@ Nothing is "done" until the Reviewer has passed it.
 
 - [ ] Read this file end-to-end (especially §2 and §3).
 - [ ] Read `PLAN.md` — work only on the current phase; don't skip ahead (Balance WinForms is off-limits until Phase 1 is reviewed and Balance has its git baseline commit).
-- [ ] Skim `../Balance/CLAUDE.md` Part 2
+- [ ] Skim `../Balance/CLAUDE.md` Part 2 (§12–§17); §16 is the edge-case authority.
+- [ ] Confirm which environment (Dev/Test/Prod) any manual test targets — never point tests at Production.
+- [ ] Never commit secrets; check your diff for tokens/secrets before every commit.
+- [ ] Preserve contract typos in any new DTO/serialization code — grep for `Telorence` and `VehicleLicenselId` as a sanity check that you matched existing patterns.
+
+---
+
+*v1.0 — 2026-07-07*

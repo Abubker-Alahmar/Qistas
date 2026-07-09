@@ -84,4 +84,15 @@ the Api's working directory -- use an absolute path in production) holds two tab
 both created automatically on first use:
 
 - `Outbox` -- failed-message archive awaiting employee action (review screen).
-- `IntegrationLog` -- one row per D365 call att
+- `IntegrationLog` -- one row per D365 call attempt: timestamp, environment, operation,
+  request JSON, response JSON, HTTP status, error, duration. Queryable via
+  `GET /api/admin/logs?operation=&success=&take=`. Kept in Qistas's own DB (not
+  BalanceSAHEL_New) so large JSON payloads never bloat the production weighbridge
+  database or its backups; the Dapper-based repository can be pointed at SQL Server
+  later if desired.
+
+## Notes on contract fidelity
+
+Every D365 contract DTO in `Qistas.Domain.Contracts` preserves the documented typos
+exactly (`Telorence`, `VehicleLicenselId`, `Userid` request / `UserId` response,
+`Vehichle*` in `LoadHeader`). Do not "fix" these -- see `AGENT_INSTRUCTION.md` section 2.

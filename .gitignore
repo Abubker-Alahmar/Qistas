@@ -29,22 +29,23 @@ out/
 
 # Environment / secrets — never commit
 appsettings.Development.json
+appsettings.Test.json
+appsettings.Production.json
+appsettings.Local.json
 appsettings.*.local.json
 *.env
 .env
 secrets.json
 **/secrets/*
 
-# SQLite outbox data files
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
-
 # Logs
 *.log
 logs/
+
+# Local SQLite data
+*.db
+*.db-shm
+*.db-wal
 
 # OS
 .DS_Store

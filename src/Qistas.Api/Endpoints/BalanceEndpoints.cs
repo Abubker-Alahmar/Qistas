@@ -1,4 +1,5 @@
 using Qistas.Api.Contracts;
+using Qistas.Api.Validators;
 using Qistas.Application.Abstractions;
 using Qistas.Application.UseCases;
 using Qistas.Domain.Models;
@@ -20,7 +21,8 @@ public static class BalanceEndpoints
 
         group.MapPost("/entry-weight", PostEntryWeight)
             .WithName("PostEntryWeight")
-            .WithSummary("Submit Weight-In (setEntryWeightDetails) for a Sales Order load.");
+            .WithSummary("Submit Weight-In (setEntryWeightDetails) for a Sales Order load.")
+            .AddEndpointFilter<ValidationFilter<EntryWeightRequestDto>>();
 
         group.MapGet("/loads/{loadId}", GetLoadDetails)
             .WithName("GetLoadDetails")
@@ -28,7 +30,8 @@ public static class BalanceEndpoints
 
         group.MapPost("/exit-weight", PostExitWeight)
             .WithName("PostExitWeight")
-            .WithSummary("Submit Weight-Out (setExitWeightDetails), idempotent on ScaleSystemReferenceId.");
+            .WithSummary("Submit Weight-Out (setExitWeightDetails), idempotent on ScaleSystemReferenceId.")
+            .AddEndpointFilter<ValidationFilter<ExitWeightRequestDto>>();
 
         app.MapGet("/api/health", GetHealth)
             .WithGroupName("balance")

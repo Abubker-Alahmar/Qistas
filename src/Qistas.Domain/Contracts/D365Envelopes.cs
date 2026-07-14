@@ -47,7 +47,7 @@ public sealed class D365Response
 public sealed class D365ResponseContext
 {
     [JsonPropertyName("$id")]
-    public string? DollarId { get; set; }
+    public string? Id { get; set; }
 
     [JsonPropertyName("LoadHeader")]
     public LoadHeader? LoadHeader { get; set; }

@@ -24,7 +24,7 @@ Reference: `../Balance/CLAUDE.md` (Part 2, §12–§17). Operating rules: `AGENT
 - [x] `TokenService`: Azure AD client_credentials, cache per environment, thread-safe (`SemaphoreSlim`), proactive refresh ~5 min before expiry, refresh-once-and-retry-once on 401
 - [x] `D365Client` (typed `HttpClient`): setEntryWeightDetails, getLoadDetails, setExitWeightDetails; `System.Text.Json` with `CultureInfo.InvariantCulture`-safe converters; ignore `$id` members; case-insensitive `CompanyId` comparison
 - [x] Polly policies: exponential backoff retry (configurable N), circuit breaker for sustained outages, per-call timeout — all async, never blocking
-- [x] Outbox persistence (SQLite or SQL Server — configurable): table `Outbox` (Id, ScaleSystemReferenceId, Operation, PayloadJson, Status [Pending/Sent/Failed/Manual], Attempts, LastError, LastResponseJson, CreatedUtc, UpdatedUtc)
+- [x] Outbox persistence (SQL Server): table `Outbox` (Id, ScaleSystemReferenceId, Operation, PayloadJson, Status [Pending/Sent/Failed/Manual], Attempts, LastError, LastResponseJson, CreatedUtc, UpdatedUtc)
 - [x] Request/response logging (Serilog) — full payloads, secrets redacted
 - [x] Secret storage: client_secret encrypted at rest (DPAPI on Windows) — never Balance's `ClsCrypto`
 

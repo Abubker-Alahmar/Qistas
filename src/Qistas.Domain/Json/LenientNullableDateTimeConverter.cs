@@ -33,7 +33,30 @@ public sealed class LenientNullableDateTimeConverter : JsonConverter<DateTime?>
             return null;
         }
 
-        string? raw = reader.GetString();
+        return TryParseLenient(reader.GetString());
+    }
+
+    public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+    }
+
+    public static bool IsSentinel(DateTime value) => value.Date == SentinelDate;
+
+    /// <summary>
+    /// Shared sentinel-aware lenient parse, callable outside the JSON pipeline (e.g. from
+    /// mappers that parse raw response strings by hand -- see
+    /// Qistas.Application.Mapping.LoadDetailsMapper). Same rules as <see cref="Read"/>:
+    /// accepts non-padded/full-ISO formats, treats any 1900-01-01 date (any time) as null.
+    /// </summary>
+    public static DateTime? TryParseLenient(string? raw)
+    {
         if (string.IsNullOrWhiteSpace(raw))
         {
             return null;
@@ -53,18 +76,15 @@ public sealed class LenientNullableDateTimeConverter : JsonConverter<DateTime?>
         return IsSentinel(parsed) ? null : parsed;
     }
 
-    public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+    /// <summary>
+    /// Convenience wrapper for callers that only need the date part (e.g. license expiry
+    /// dates surfaced as <see cref="DateOnly"/> in domain read models).
+    /// </summary>
+    public static DateOnly? TryParseLenientDate(string? raw)
     {
-        if (value is null)
-        {
-            writer.WriteNullValue();
-            return;
-        }
-
-        writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        var parsed = TryParseLenient(raw);
+        return parsed is null ? null : DateOnly.FromDateTime(parsed.Value);
     }
-
-    public static bool IsSentinel(DateTime value) => value.Date == SentinelDate;
 }
 
 /// <summary>

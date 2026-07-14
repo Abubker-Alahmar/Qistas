@@ -2,7 +2,7 @@ namespace Qistas.Application.Outbox;
 
 /// <summary>
 /// Persistence contract for the Outbox table. Implemented in Qistas.Infrastructure over
-/// SQLite (Microsoft.Data.Sqlite + Dapper).
+/// SQL Server via EF Core (Microsoft.EntityFrameworkCore.SqlServer).
 /// </summary>
 public interface IOutboxRepository
 {

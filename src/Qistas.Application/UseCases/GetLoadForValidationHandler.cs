@@ -10,21 +10,12 @@ namespace Qistas.Application.UseCases;
 /// immediately before validation -- items/qty may have changed in D365 during loading,
 /// so the entry-time snapshot must never be reused (Balance/CLAUDE.md #7 / #16.7).
 /// </summary>
-public sealed class GetLoadForValidationHandler
+public sealed class GetLoadForValidationHandler(ID365Client client, IActiveEnvironmentProvider environmentProvider)
 {
-    private readonly ID365Client _client;
-    private readonly IActiveEnvironmentProvider _environmentProvider;
-
-    public GetLoadForValidationHandler(ID365Client client, IActiveEnvironmentProvider environmentProvider)
-    {
-        _client = client;
-        _environmentProvider = environmentProvider;
-    }
-
     public async Task<LoadValidationResult> HandleAsync(string loadId, string userId, CancellationToken cancellationToken)
     {
-        var environment = _environmentProvider.GetActiveEnvironment();
-        var settings = _environmentProvider.GetSettings(environment);
+        var environment = environmentProvider.GetActiveEnvironment();
+        var settings = environmentProvider.GetSettings(environment);
 
         var request = new GetLoadDetailsRequest
         {
@@ -32,7 +23,7 @@ public sealed class GetLoadForValidationHandler
             Userid = userId,
             LoadId = loadId,
         };
-        var callResult = await _client.GetLoadDetailsAsync(request, environment, cancellationToken);
+        var callResult = await client.GetLoadDetailsAsync(request, environment, cancellationToken);
 
         if (!callResult.TransportSucceeded)
         {

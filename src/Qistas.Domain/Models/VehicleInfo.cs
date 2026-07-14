@@ -1,3 +1,5 @@
+using Qistas.Domain.Enums;
+
 namespace Qistas.Domain.Models;
 
 /// <summary>
@@ -14,7 +16,7 @@ public sealed class VehicleInfo
     public DateOnly LicenseExpiryDate { get; set; }
 
     /// <summary>Optional -- one of Truck / Van / Pickup.</summary>
-    public string? VehicleType { get; set; }
+    public VehicleType? VehicleType { get; set; }
 
     /// <summary>Optional -- Alsahl Group vehicle.</summary>
     public bool IsInternal { get; set; }

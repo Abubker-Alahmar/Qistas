@@ -38,7 +38,7 @@ public class SubmitExitWeightHandlerTests
     {
         Success = true,
         LoadId = "LOAD-1",
-        CompanyId = "BELL",
+        CompanyId = "FRDS",
         Lines = new List<LoadLineInfo>
         {
             new() { ItemId = "260000018", NetWeightKg = 480.00m, GrossWeightKg = 500.00m, QuantityKg = 480.00m },

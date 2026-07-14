@@ -4,8 +4,8 @@ namespace Qistas.Tests.Fakes;
 
 /// <summary>
 /// In-memory hand-rolled fake for <see cref="IOutboxRepository"/>, used by use-case tests
-/// that need to assert whether a message was (or was not) queued, without touching SQLite.
-/// The real repository is exercised separately by SqliteOutboxRepositoryTests.
+/// that need to assert whether a message was (or was not) queued, without touching SQL Server.
+/// The real repository is exercised separately by SqlServerOutboxRepositoryTests.
 /// </summary>
 public sealed class FakeOutboxRepository : IOutboxRepository
 {

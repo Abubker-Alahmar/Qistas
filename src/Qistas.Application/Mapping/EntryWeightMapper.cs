@@ -38,7 +38,7 @@ public static class EntryWeightMapper
                 VehicleLicenselId = submission.Vehicle.LicenseId,
                 VehicleLicenseExpiryDate = submission.Vehicle.LicenseExpiryDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 VehicleNote = submission.Vehicle.Note,
-                VehicleType = submission.Vehicle.VehicleType,
+                VehicleType = submission.Vehicle.VehicleType?.ToString(),
             },
         };
     }

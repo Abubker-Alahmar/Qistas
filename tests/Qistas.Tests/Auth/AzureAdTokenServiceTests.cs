@@ -20,10 +20,12 @@ public class AzureAdTokenServiceTests
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://login.microsoftonline.com/") };
         var factory = new SingleClientFactory(httpClient);
         var optionsMonitor = new TestOptionsMonitor<QistasOptions>(options);
-        var secretProtector = new IdentitySecretProtector();
         var logger = NullLogger<AzureAdTokenService>.Instance;
 
-        return new AzureAdTokenService(factory, optionsMonitor, secretProtector, logger);
+        // ISecretProtector is no longer wired into AzureAdTokenService (DPAPI disabled --
+        // see AzureAdTokenService.AcquireTokenAsync). IdentitySecretProtector fake is kept
+        // in Qistas.Tests.Fakes in case it's re-enabled later, just unused here now.
+        return new AzureAdTokenService(factory, optionsMonitor, logger);
     }
 
     private static QistasOptions BuildOptions() => new()
@@ -36,14 +38,14 @@ public class AzureAdTokenServiceTests
                 BaseUrl = "https://btodevbox.axcloud.dynamics.com/",
                 CompanyId = "Bell",
                 ClientId = "dev-client-id",
-                ClientSecretProtected = "dev-secret",
+                ClientSecret = "dev-secret",
             },
             ["Test"] = new D365EnvironmentOptions
             {
                 BaseUrl = "https://alsahl-test.sandbox.operations.eu.dynamics.com/",
                 CompanyId = "Bell",
                 ClientId = "test-client-id",
-                ClientSecretProtected = "test-secret",
+                ClientSecret = "test-secret",
             },
         },
     };

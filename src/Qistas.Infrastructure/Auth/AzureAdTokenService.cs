@@ -26,21 +26,23 @@ public sealed class AzureAdTokenService : ITokenService
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IOptionsMonitor<QistasOptions> _options;
-    private readonly ISecretProtector _secretProtector;
     private readonly ILogger<AzureAdTokenService> _logger;
 
     private readonly ConcurrentDictionary<D365Environment, SemaphoreSlim> _locks = new();
     private readonly ConcurrentDictionary<D365Environment, CachedToken> _cache = new();
 
+    // NOTE: ISecretProtector (DPAPI/no-op) is intentionally NOT wired in here right now --
+    // client_secret is read as plaintext from QistasOptions.ClientSecret only. The
+    // ISecretProtector/DpapiSecretProtector/NoOpSecretProtector classes are kept in the
+    // codebase (Qistas.Application.Abstractions / Qistas.Infrastructure.Secrets) for a
+    // later re-enable; they're just not called from this path anymore.
     public AzureAdTokenService(
         IHttpClientFactory httpClientFactory,
         IOptionsMonitor<QistasOptions> options,
-        ISecretProtector secretProtector,
         ILogger<AzureAdTokenService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _options = options;
-        _secretProtector = secretProtector;
         _logger = logger;
     }
 
@@ -99,37 +101,27 @@ public sealed class AzureAdTokenService : ITokenService
             throw new InvalidOperationException($"No D365 environment configuration found for '{envKey}'.");
         }
 
-        string clientSecret;
-        try
+        // ISecretProtector/DPAPI is currently disabled for this lookup -- ClientSecretProtected
+        // is ignored even if present. Only the plaintext ClientSecret field is read. This is a
+        // deliberate, temporary simplification (owner request); DpapiSecretProtector/
+        // NoOpSecretProtector remain in the codebase for a later re-enable.
+        if (!string.IsNullOrEmpty(envOptions.ClientSecretProtected))
         {
-            if (!string.IsNullOrEmpty(envOptions.ClientSecretProtected))
-            {
-                clientSecret = _secretProtector.Unprotect(envOptions.ClientSecretProtected);
-            }
-            else if (!string.IsNullOrEmpty(envOptions.ClientSecret))
-            {
-                // Dev/Test convenience fallback (plaintext from user-secrets/env-vars/
-                // untracked appsettings). Warn on every acquisition so it cannot slip
-                // into production unnoticed (AGENT_INSTRUCTION.md section 7).
-                _logger.LogWarning(
-                    "Environment '{Environment}' is using a PLAINTEXT ClientSecret. Acceptable for Dev/Test only -- use ClientSecretProtected (DPAPI) in production.",
-                    envKey);
-                clientSecret = envOptions.ClientSecret;
-            }
-            else
-            {
-                clientSecret = string.Empty;
-            }
+            _logger.LogWarning(
+                "Environment '{Environment}' has a ClientSecretProtected value configured, but DPAPI " +
+                "decryption is currently disabled -- it will be ignored. Set ClientSecret (plaintext) instead.",
+                envKey);
         }
-        catch (Exception ex)
+
+        string clientSecret = envOptions.ClientSecret ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(clientSecret))
         {
-            // DPAPI unprotect fails if the secret was encrypted on a different machine or
-            // Windows user profile (e.g. config copied between scale PCs). Surface a clear
-            // auth-configuration failure, not a generic crypto error (edge case #22).
-            throw new InvalidOperationException(
-                $"Could not decrypt the client secret for environment '{envKey}'. It was likely " +
-                "encrypted on a different machine/user profile -- re-enter the secret via the " +
-                "admin screen on this machine.", ex);
+            // Warn on every acquisition so a plaintext secret cannot slip into production
+            // unnoticed (AGENT_INSTRUCTION.md section 7).
+            _logger.LogWarning(
+                "Environment '{Environment}' is using a PLAINTEXT ClientSecret (DPAPI protection disabled).",
+                envKey);
         }
 
         if (string.IsNullOrWhiteSpace(options.Tenant) || string.IsNullOrWhiteSpace(envOptions.ClientId))

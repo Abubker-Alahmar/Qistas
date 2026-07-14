@@ -15,7 +15,7 @@ src/
   Qistas.Domain/                # D365 contract DTOs (with the required typos), domain models,
                                  # validation rules, JSON converters -- no dependencies
   Qistas.Application/           # Use cases, manual (non-AutoMapper) mappers, archive/log abstractions
-  Qistas.Infrastructure/        # TokenService, D365Client (Polly inline resilience), SQLite
+  Qistas.Infrastructure/        # TokenService, D365Client (Polly inline resilience), SQL Server
                                  # failed-message archive + IntegrationLog, DPAPI secret protector,
                                  # DI wiring (ServiceCollectionExtensions)
   Qistas.Api/                   # ASP.NET Core Minimal API host -- Balance-facing + admin endpoints
@@ -61,7 +61,7 @@ description banner, so it's never ambiguous which environment a developer is loo
 `appsettings.json` in `Qistas.Api` defines the `Qistas:` section: `ActiveEnvironment`,
 `Tenant`, `Environments:{Dev,Test,Prod}` (BaseUrl/CompanyId/ClientId/
 ClientSecretProtected), `Retry` (Polly inline retry settings -- keep attempts/timeout
-short so trucks are never held), `Outbox` (SQLite path).
+short so trucks are never held), `ConnectionStrings:QistasLogDb` (SQL Server connection string for the Outbox/IntegrationLog/Serilog database).
 
 **No real credentials are committed.** `ClientId` and `ClientSecretProtected` are empty
 strings in the checked-in `appsettings.json` for every environment. The Dev/Test
@@ -79,20 +79,45 @@ and must be rotated before use; configure real values via:
 
 ## Archive + integration log database
 
-One SQLite database (`Qistas:Outbox:SqlitePath`, default `qistas-outbox.db` relative to
-the Api's working directory -- use an absolute path in production) holds two tables,
-both created automatically on first use:
+One SQL Server database (`ConnectionStrings:QistasLogDb`) holds two tables, both created
+automatically on first use:
 
 - `Outbox` -- failed-message archive awaiting employee action (review screen).
 - `IntegrationLog` -- one row per D365 call attempt: timestamp, environment, operation,
   request JSON, response JSON, HTTP status, error, duration. Queryable via
   `GET /api/admin/logs?operation=&success=&take=`. Kept in Qistas's own DB (not
   BalanceSAHEL_New) so large JSON payloads never bloat the production weighbridge
-  database or its backups; the Dapper-based repository can be pointed at SQL Server
-  later if desired.
+  database or its backups.
 
 ## Notes on contract fidelity
 
 Every D365 contract DTO in `Qistas.Domain.Contracts` preserves the documented typos
 exactly (`Telorence`, `VehicleLicenselId`, `Userid` request / `UserId` response,
 `Vehichle*` in `LoadHeader`). Do not "fix" these -- see `AGENT_INSTRUCTION.md` section 2.
+
+## getLoadDetails: Driver/Vehicle/Location surfacing (owner decision)
+
+`getLoadDetails`'s D365 response includes `Context.DriverDetails`, `Context.VehicleDetails`,
+and each line's `LocationId`/`LocationName` -- these used to be silently dropped by
+`LoadDetailsMapper`. They are now mapped through end-to-end:
+
+```
+D365Response.Context.DriverDetails/VehicleDetails (wire, Qistas.Domain.Contracts)
+  -> LoadDetailsMapper.ToDomainResult
+  -> LoadValidationResult.Driver / .Vehicle (Qistas.Domain.Models, clean OUTPUT read-shape --
+     distinct from DriverInfo/VehicleInfo, which is the INPUT shape sent on entry-weight)
+  -> LoadValidationResultDto.Driver / .Vehicle (Qistas.Api.Contracts)
+  -> JSON body of GET /api/scale/loads/{loadId}
+```
+
+`LoadLineInfo` similarly now carries `LocationId`/`LocationName` per line.
+
+Balance uses this to (a) auto-fill the Weight-Out materials grid from D365 line items
+instead of manual re-entry, and (b) sync `Table_Trucks` (driver/vehicle master) with D365's
+canonical values, matched by `DriverName`+`TruckNo` -- **D365 is treated as source of truth**
+for this sync; see `Balance/CLAUDE.md` section 14 item 5 for the Balance-side behavior.
+
+Date parsing for `DriverLicenseExpiryDate`/`VehicleLicenseExpiryDate` reuses the same
+"1900-01-01 (any time) = null" sentinel rule as `LoadLine.BatchExpirationDate`, via
+`LenientNullableDateTimeConverter.TryParseLenientDate` (shared helper, refactored out of the
+JSON converter so the mapper can call it directly without going through JSON deserialization).

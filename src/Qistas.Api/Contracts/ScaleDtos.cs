@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using Qistas.Domain.Enums;
 using Qistas.Domain.Models;
 
 namespace Qistas.Api.Contracts;
@@ -7,32 +9,54 @@ namespace Qistas.Api.Contracts;
 /// from both the D365 wire contracts (Qistas.Domain.Contracts) and the domain models
 /// (Qistas.Domain.Models) -- Balance/.NET 3.5 talks plain JSON over localhost, it should
 /// never need to know about D365's field-name quirks.
+///
+/// DataAnnotations attributes below guard the HTTP boundary (malformed/empty input) and
+/// are enforced by <see cref="Qistas.Api.Validators.ValidationFilter{T}"/> before the
+/// handler runs. Business-rule validation (license expiry, weight sanity, tolerance) stays
+/// in <c>Qistas.Domain.Validation.D365Validation</c>.
 /// </summary>
 public sealed class EntryWeightRequestDto
 {
+    [Required, MinLength(1)]
     public required string LoadId { get; init; }
+
+    [Required, MinLength(1)]
     public required string CompanyId { get; init; }
 
     /// <summary>Balance operator (login) name -- becomes the D365 "Userid".</summary>
+    [Required, MinLength(1)]
     public required string OperatorUserId { get; init; }
 
+    [Required, MinLength(1)]
     public required string ScaleSystemReferenceId { get; init; }
+
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
     public required decimal EntryWeightKg { get; init; }
+
     public DateTimeOffset? EntryDateTimeUtc { get; init; }
 
+    [Required, MinLength(1)]
     public required string DriverName { get; init; }
+
+    [Required, MinLength(1)]
     public required string DriverNationalId { get; init; }
+
+    [Required, MinLength(1)]
     public required string DriverLicenseId { get; init; }
+
     public required DateOnly DriverLicenseExpiryDate { get; init; }
     public string? DriverInternalId { get; init; }
     public bool IsInternalDriver { get; init; }
 
     /// <summary>Balance's TruckNo -- becomes the D365 "VehiclePlateNumber".</summary>
+    [Required, MinLength(1)]
     public required string VehiclePlateNumber { get; init; }
 
+    [Required, MinLength(1)]
     public required string VehicleLicenseId { get; init; }
+
     public required DateOnly VehicleLicenseExpiryDate { get; init; }
-    public string? VehicleType { get; init; }
+    public VehicleType? VehicleType { get; init; }
     public bool IsInternalVehicle { get; init; }
     public string? VehicleNote { get; init; }
 
@@ -67,18 +91,34 @@ public sealed class EntryWeightRequestDto
 
 public sealed class ExitWeightRequestDto
 {
+    [Required, MinLength(1)]
     public required string LoadId { get; init; }
+
+    [Required, MinLength(1)]
     public required string CompanyId { get; init; }
 
     /// <summary>Balance operator (login) name -- becomes the D365 "Userid".</summary>
+    [Required, MinLength(1)]
     public required string OperatorUserId { get; init; }
 
+    [Required, MinLength(1)]
     public required string ScaleSystemReferenceId { get; init; }
+
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
     public required decimal EntryWeightKg { get; init; }
+
+    [Range(typeof(decimal), "0.01", "79228162514264337593543950335")]
     public required decimal ExitWeightKg { get; init; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
     public required decimal TotalNetWeightKg { get; init; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
     public required decimal TotalGrossWeightKg { get; init; }
+
+    [Range(typeof(decimal), "0", "79228162514264337593543950335")]
     public required decimal ToleranceKg { get; init; }
+
     public DateTimeOffset? ExitDateTimeUtc { get; init; }
 
     public static ExitWeightSubmission ToDomain(ExitWeightRequestDto dto) => new()
@@ -120,7 +160,15 @@ public sealed class LoadValidationResultDto
     public decimal? HeaderGrossWeightKg { get; init; }
     public decimal TotalLineNetWeightKg { get; init; }
     public decimal TotalLineGrossWeightKg { get; init; }
-    public IReadOnlyList<LoadLineInfo> Lines { get; init; } = Array.Empty<LoadLineInfo>();
+    public IReadOnlyList<LoadLineInfo> Lines { get; init; } = [];
+
+    /// <summary>D365's canonical driver master data, for Balance to sync its local driver
+    /// records. Null when D365 did not echo driver details.</summary>
+    public DriverDetailsResult? Driver { get; init; }
+
+    /// <summary>D365's canonical vehicle master data, for Balance to sync its local vehicle
+    /// records. Null when D365 did not echo vehicle details.</summary>
+    public VehicleDetailsResult? Vehicle { get; init; }
 
     public static LoadValidationResultDto From(LoadValidationResult result) => new()
     {
@@ -133,5 +181,7 @@ public sealed class LoadValidationResultDto
         TotalLineNetWeightKg = result.TotalLineNetWeightKg,
         TotalLineGrossWeightKg = result.TotalLineGrossWeightKg,
         Lines = result.Lines,
+        Driver = result.Driver,
+        Vehicle = result.Vehicle,
     };
 }

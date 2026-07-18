@@ -28,7 +28,7 @@ namespace Qistas.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Outbox",
+                name: "BalanceOutbox",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
@@ -46,7 +46,7 @@ namespace Qistas.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Outbox", x => x.Id);
+                    table.PrimaryKey("PK_BalanceOutbox", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -71,13 +71,13 @@ namespace Qistas.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Outbox_ScaleSystemReferenceId",
-                table: "Outbox",
+                name: "IX_BalanceOutbox_ScaleSystemReferenceId",
+                table: "BalanceOutbox",
                 column: "ScaleSystemReferenceId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Outbox_Status",
-                table: "Outbox",
+                name: "IX_BalanceOutbox_Status",
+                table: "BalanceOutbox",
                 column: "Status");
 
             migrationBuilder.CreateIndex(
@@ -89,7 +89,7 @@ namespace Qistas.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "Outbox");
+            migrationBuilder.DropTable(name: "BalanceOutbox");
 
             migrationBuilder.DropTable(name: "IntegrationLog");
         }

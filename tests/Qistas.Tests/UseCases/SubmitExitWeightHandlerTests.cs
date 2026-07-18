@@ -34,18 +34,6 @@ public class SubmitExitWeightHandlerTests
         ExitDateTimeUtc = FixedNow,
     };
 
-    private static LoadValidationResult ValidFreshLoad() => new()
-    {
-        Success = true,
-        LoadId = "LOAD-1",
-        CompanyId = "FRDS",
-        Lines = new List<LoadLineInfo>
-        {
-            new() { ItemId = "260000018", NetWeightKg = 480.00m, GrossWeightKg = 500.00m, QuantityKg = 480.00m },
-            new() { ItemId = "260000019", NetWeightKg = 480.00m, GrossWeightKg = 498.00m, QuantityKg = 480.00m },
-        },
-    };
-
     private static (SubmitExitWeightHandler handler, FakeD365Client client, FakeOutboxRepository outbox) CreateHandler()
     {
         var client = new FakeD365Client();
@@ -73,7 +61,7 @@ public class SubmitExitWeightHandlerTests
             UpdatedUtc = FixedNow.UtcDateTime.AddMinutes(-5),
         }, CancellationToken.None);
 
-        var result = await handler.HandleAsync(ValidSubmission(), ValidFreshLoad(), CancellationToken.None);
+        var result = await handler.HandleAsync(ValidSubmission(), CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.True(result.WasAlreadyProcessed);
@@ -87,7 +75,7 @@ public class SubmitExitWeightHandlerTests
         client.ExitResultFactory = _ => D365CallResult<D365Response>.Ok(
             new D365Response { Status = false, Message = "This ScaleSystemReferenceId was already processed" }, "{}");
 
-        var result = await handler.HandleAsync(ValidSubmission(), ValidFreshLoad(), CancellationToken.None);
+        var result = await handler.HandleAsync(ValidSubmission(), CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.True(result.WasAlreadyProcessed);
@@ -104,7 +92,7 @@ public class SubmitExitWeightHandlerTests
         client.ExitResultFactory = _ => D365CallResult<D365Response>.Ok(
             new D365Response { Status = false, Message = "Load ID not found" }, "{}");
 
-        var result = await handler.HandleAsync(ValidSubmission(), ValidFreshLoad(), CancellationToken.None);
+        var result = await handler.HandleAsync(ValidSubmission(), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.False(result.WasAlreadyProcessed);
@@ -118,7 +106,7 @@ public class SubmitExitWeightHandlerTests
         var (handler, client, outbox) = CreateHandler();
         client.ExitResultFactory = _ => D365CallResult<D365Response>.TransportFailure("Connection refused");
 
-        var result = await handler.HandleAsync(ValidSubmission(), ValidFreshLoad(), CancellationToken.None);
+        var result = await handler.HandleAsync(ValidSubmission(), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(1, client.ExitCallCount);
@@ -128,39 +116,30 @@ public class SubmitExitWeightHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_FreshLoadFetchFailed_FailsWithoutCallingD365()
+    public async Task HandleAsync_ExitNotGreaterThanEntry_FailsLocallyWithoutCallingD365()
     {
-        var (handler, client, _) = CreateHandler();
-        var failedLoad = new LoadValidationResult { Success = false, Message = "Could not reach D365." };
-
-        var result = await handler.HandleAsync(ValidSubmission(), failedLoad, CancellationToken.None);
-
-        Assert.False(result.Success);
-        Assert.Equal(0, client.ExitCallCount);
-    }
-
-    [Fact]
-    public async Task HandleAsync_ToleranceBreach_FailsLocallyWithoutCallingD365()
-    {
+        // The only local check left on this path -- tolerance is now Balance's
+        // responsibility (validated against the load it already fetched at Weight-Out
+        // screen open), so this endpoint no longer re-fetches getLoadDetails at all.
         var (handler, client, outbox) = CreateHandler();
-
-        var submission = ValidSubmission();
-        // Load lines sum to ~978 kg gross but submission claims 1000 kg total gross with a
-        // tight 5 kg tolerance -- a real breach that must be caught before calling D365.
-        var breachingLoad = new LoadValidationResult
+        var submission = new ExitWeightSubmission
         {
-            Success = true,
-            Lines = new List<LoadLineInfo>
-            {
-                new() { ItemId = "X", NetWeightKg = 400.00m, GrossWeightKg = 400.00m, QuantityKg = 400.00m },
-                new() { ItemId = "Y", NetWeightKg = 578.00m, GrossWeightKg = 578.00m, QuantityKg = 578.00m },
-            },
+            LoadId = "LOAD-1",
+            CompanyId = "Bell",
+            UserId = "operator1",
+            ScaleSystemReferenceId = Reference,
+            EntryWeightKg = 25000.00m,
+            ExitWeightKg = 12000.00m,
+            TotalNetWeightKg = 13000.00m,
+            TotalGrossWeightKg = 1000.00m,
+            ToleranceKg = 5.00m,
+            ExitDateTimeUtc = FixedNow,
         };
 
-        var result = await handler.HandleAsync(submission, breachingLoad, CancellationToken.None);
+        var result = await handler.HandleAsync(submission, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Contains("Tolerance breach", result.Message);
+        Assert.Contains("swapped", result.Message);
         Assert.Equal(0, client.ExitCallCount);
         Assert.Empty(outbox.Messages);
     }

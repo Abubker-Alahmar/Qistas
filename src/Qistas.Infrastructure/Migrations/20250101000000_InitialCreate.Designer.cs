@@ -74,12 +74,12 @@ namespace Qistas.Infrastructure.Migrations
                 b.HasKey("Id");
 
                 b.HasIndex("ScaleSystemReferenceId")
-                    .HasDatabaseName("IX_Outbox_ScaleSystemReferenceId");
+                    .HasDatabaseName("IX_BalanceOutbox_ScaleSystemReferenceId");
 
                 b.HasIndex("Status")
-                    .HasDatabaseName("IX_Outbox_Status");
+                    .HasDatabaseName("IX_BalanceOutbox_Status");
 
-                b.ToTable("Outbox", (string)null);
+                b.ToTable("BalanceOutbox", (string)null);
             });
 
             modelBuilder.Entity("Qistas.Application.Logging.IntegrationLogEntry", b =>

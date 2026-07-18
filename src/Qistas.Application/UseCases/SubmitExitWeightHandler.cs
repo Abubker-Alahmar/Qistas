@@ -9,12 +9,17 @@ using Qistas.Domain.Validation;
 namespace Qistas.Application.UseCases;
 
 /// <summary>
-/// Use case for Weight-Out: re-validates against a freshly fetched load (never the
-/// entry-time snapshot), enforces the tolerance rule, and submits setExitWeightDetails.
-/// <see cref="ExitWeightSubmission.ScaleSystemReferenceId"/> (Balance's Transaction GUID)
-/// is the idempotency key -- before calling D365, checks whether this reference already
-/// has a Sent outbox record so a duplicate submit (e.g. operator double-click, or a retry
-/// after a ghost-success timeout) is short-circuited (AGENT_INSTRUCTION.md section 6).
+/// Use case for Weight-Out: does ONE thing -- submits setExitWeightDetails to D365. It does
+/// NOT re-fetch getLoadDetails (Balance already fetched a fresh load and validated tolerance
+/// at Weight-Out screen open, GET /api/scale/loads/{loadId}); the only local check left here
+/// is basic weight sanity (exit > entry). Access-token acquisition/refresh is handled inside
+/// <see cref="ID365Client"/>. <see cref="ExitWeightSubmission.ScaleSystemReferenceId"/>
+/// (Balance's Transaction GUID) is the idempotency key -- before calling D365, checks whether
+/// this reference already has a Sent outbox record so a duplicate submit (e.g. operator
+/// double-click, or a retry after a ghost-success timeout) is short-circuited
+/// (AGENT_INSTRUCTION.md section 6). On transport failure the resilience pipeline's retry
+/// rule runs first (HttpClient-level Polly policy); once exhausted, the message is archived
+/// to the BalanceOutbox table for manual review -- never dropped.
 /// </summary>
 public sealed class SubmitExitWeightHandler
 {
@@ -37,14 +42,13 @@ public sealed class SubmitExitWeightHandler
 
     public async Task<D365OperationResult> HandleAsync(
         ExitWeightSubmission submission,
-        LoadValidationResult freshLoad,
         CancellationToken cancellationToken)
     {
         // Idempotency guard: if a previous attempt for this exact reference already made
         // it to D365 (recorded as Sent), never submit it again as a new logical transaction.
         var priorMessages = await _outbox.GetByReferenceIdAsync(submission.ScaleSystemReferenceId, cancellationToken);
         var priorSent = priorMessages.FirstOrDefault(m =>
-            m.Operation == "setExitWeightDetails" && m.Status == OutboxStatus.Sent);
+            m is { Operation: "setExitWeightDetails", Status: OutboxStatus.Sent });
         if (priorSent is not null)
         {
             return D365OperationResult.Ok(
@@ -53,12 +57,10 @@ public sealed class SubmitExitWeightHandler
                 alreadyProcessed: true);
         }
 
-        if (!freshLoad.Success)
-        {
-            return D365OperationResult.Fail(freshLoad.Message ?? "Unable to validate load.", rawJson: null);
-        }
-
-        var validation = D365Validation.ValidateExitSubmission(submission, freshLoad);
+        // Only basic weight sanity is checked here -- tolerance against load-line weights
+        // was already validated by Balance using the freshly fetched load from call point 2
+        // (GET /api/scale/loads/{loadId}), so it is not re-checked against D365 again here.
+        var validation = D365Validation.ValidateExitSubmission(submission);
         if (!validation.IsValid)
         {
             return D365OperationResult.Fail(string.Join(" | ", validation.Errors), rawJson: null);

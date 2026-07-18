@@ -67,14 +67,17 @@ public static class BalanceEndpoints
     private static async Task<IResult> PostExitWeight(
         ExitWeightRequestDto dto,
         SubmitExitWeightHandler handler,
-        GetLoadForValidationHandler loadHandler,
         CancellationToken cancellationToken)
     {
-        // Always re-fetch getLoadDetails immediately before validating the exit call --
-        // never trust a client-supplied/cached snapshot (Balance/CLAUDE.md #16.7).
-        var freshLoad = await loadHandler.HandleAsync(dto.LoadId, dto.OperatorUserId, cancellationToken);
+        // Single-purpose call: Balance already fetched a fresh getLoadDetails when the
+        // Weight-Out screen opened (GET /api/scale/loads/{loadId}) and validated tolerance
+        // client-side, so this endpoint does not re-fetch or re-validate against D365 --
+        // it only ensures a valid access token (handled inside ID365Client) and submits
+        // setExitWeightDetails. On transport failure (e.g. D365 500) the resilience
+        // pipeline's retry rule runs first; once exhausted, the message is archived to the
+        // BalanceOutbox table for manual employee review.
         var submission = ExitWeightRequestDto.ToDomain(dto);
-        var result = await handler.HandleAsync(submission, freshLoad, cancellationToken);
+        var result = await handler.HandleAsync(submission, cancellationToken);
         return result.Success ? Results.Ok(ApiResultDto.From(result)) : Results.UnprocessableEntity(ApiResultDto.From(result));
     }
 

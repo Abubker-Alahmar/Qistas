@@ -48,6 +48,12 @@ public sealed class LoadLineInfo
 
     /// <summary>D365 warehouse location name for this line (Context.LoadLines[].LocationName).</summary>
     public string? LocationName { get; init; }
+
+    /// <summary>D365's line-level unit id (Context.LoadLines[].UnitId, e.g. "KG", "Carton",
+    /// "Pack", "PCS"). Surfaced as-is (not normalized) so Balance can match it against its
+    /// local Units lookup table to auto-fill the Weight-Out materials grid -- does not affect
+    /// the existing KG weight normalization, which still uses this same source value.</summary>
+    public string? UnitId { get; init; }
 }
 
 /// <summary>

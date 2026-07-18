@@ -12,8 +12,9 @@ namespace Qistas.Application.Mapping;
 /// Context.DriverDetails / Context.VehicleDetails (as <see cref="LoadValidationResult.Driver"/>
 /// / <see cref="LoadValidationResult.Vehicle"/>, for Balance to sync local driver/vehicle
 /// master data with D365's canonical values) and each line's LocationId/LocationName (for
-/// auto-filling the materials grid's warehouse location). All additive -- no change to the
-/// existing header/line/weight mapping behavior.
+/// auto-filling the materials grid's warehouse location) and UnitId (for auto-filling the
+/// materials grid's unit via Balance's local Units lookup table). All additive -- no change
+/// to the existing header/line/weight mapping behavior.
 /// </summary>
 public static class LoadDetailsMapper
 {
@@ -41,6 +42,7 @@ public static class LoadDetailsMapper
             GrossWeightKg = WeightUnitConverter.ToKg(line.ItemGrossWeight, line.UnitId),
             LocationId = line.LocationId,
             LocationName = line.LocationName,
+            UnitId = line.UnitId,
         }).ToList();
 
         var driverDetails = response.Context?.DriverDetails;

@@ -83,14 +83,15 @@ public static class D365Validation
             ValidateLicenseExpiry(submission.Vehicle.LicenseExpiryDate, asOf, "Vehicle license"));
     }
 
-    public static ValidationResult ValidateExitSubmission(ExitWeightSubmission submission, LoadValidationResult load)
+    /// <summary>
+    /// Exit-submission check performed by Qistas itself: weight sanity only. Tolerance
+    /// (|TotalGrossWeight - sum(load line weights)|) is validated by Balance using the
+    /// freshly fetched load from call point 2 (GET /api/scale/loads/{loadId}) before this
+    /// call is ever made -- this endpoint does not re-fetch the load, so it has no line
+    /// weights to compare against and does not repeat that check.
+    /// </summary>
+    public static ValidationResult ValidateExitSubmission(ExitWeightSubmission submission)
     {
-        var weightCheck = ValidateLoadedExitGreaterThanEntry(submission.EntryWeightKg, submission.ExitWeightKg);
-        var toleranceCheck = ValidateTolerance(
-            submission.TotalGrossWeightKg,
-            load.TotalLineGrossWeightKg,
-            submission.ToleranceKg);
-
-        return ValidationResult.Combine(weightCheck, toleranceCheck);
+        return ValidateLoadedExitGreaterThanEntry(submission.EntryWeightKg, submission.ExitWeightKg);
     }
 }

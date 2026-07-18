@@ -6,8 +6,9 @@ namespace Qistas.Infrastructure.Persistence;
 
 /// <summary>
 /// EF Core DbContext for Qistas's own database (the "QistasLogDb" connection string) --
-/// covers exactly two tables: Outbox (the durable failed-message archive) and
-/// IntegrationLog (per-call D365/token integration log). This intentionally does NOT
+/// covers exactly two tables: BalanceOutbox (the durable failed-message archive for
+/// Balance-originated writes) and IntegrationLog (per-call D365/token integration log).
+/// This intentionally does NOT
 /// include Serilog's own "Logs" table: that table is created/managed independently by the
 /// Serilog.Sinks.MSSqlServer sink (see appsettings.json) and must stay outside EF Core's
 /// migration model.
@@ -28,13 +29,17 @@ public sealed class QistasDbContext : DbContext
 
     public DbSet<OutboxMessage> Outbox => Set<OutboxMessage>();
 
+    // NOTE: the DbSet property name/CLR type stay as "OutboxMessage"/"Outbox" -- only the
+    // physical table name changes (see ToTable("BalanceOutbox") below) so it's clear in the
+    // database itself which project (Balance) this archive belongs to.
+
     public DbSet<IntegrationLogEntry> IntegrationLogs => Set<IntegrationLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OutboxMessage>(builder =>
         {
-            builder.ToTable("Outbox");
+            builder.ToTable("BalanceOutbox");
 
             builder.HasKey(x => x.Id);
             builder.Property(x => x.Id).ValueGeneratedOnAdd();
@@ -57,8 +62,8 @@ public sealed class QistasDbContext : DbContext
             builder.Property(x => x.CreatedUtc).IsRequired();
             builder.Property(x => x.UpdatedUtc).IsRequired();
 
-            builder.HasIndex(x => x.ScaleSystemReferenceId).HasDatabaseName("IX_Outbox_ScaleSystemReferenceId");
-            builder.HasIndex(x => x.Status).HasDatabaseName("IX_Outbox_Status");
+            builder.HasIndex(x => x.ScaleSystemReferenceId).HasDatabaseName("IX_BalanceOutbox_ScaleSystemReferenceId");
+            builder.HasIndex(x => x.Status).HasDatabaseName("IX_BalanceOutbox_Status");
         });
 
         modelBuilder.Entity<IntegrationLogEntry>(builder =>
